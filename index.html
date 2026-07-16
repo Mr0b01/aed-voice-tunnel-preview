@@ -138,7 +138,7 @@
   <section class="cards">
     <article class="card" data-choice="singularity-echo" onclick="selectCard(this)">
       <div class="preview">
-        <span class="tag recommended">РЕКОМЕНДОВАНО</span>
+        <span class="tag">ХВИЛЬОВА МЕХАНІКА</span>
         <canvas id="singularity"></canvas>
       </div>
       <div class="body">
@@ -169,14 +169,14 @@
       </div>
     </article>
 
-    <article class="card" data-choice="voice-tunnel" onclick="selectCard(this)">
+    <article class="card selected" data-choice="voice-tunnel" onclick="selectCard(this)">
       <div class="preview">
-        <span class="tag recommended">НОВИЙ</span>
+        <span class="tag recommended">ОБРАНО</span>
         <canvas id="tunnel"></canvas>
       </div>
       <div class="body">
         <div class="title-row"><span class="letter">D</span><h2>Voice Tunnel</h2></div>
-        <p>16 перспективних EXPO-контурів виходять із notch, деформуються голосом і під час processing затягуються назад.</p>
+        <p>16 EXPO-контурів народжуються точно по нижній кромці island, розгортаються вниз і стискаються назад під його чорну маску.</p>
       </div>
     </article>
   </section>
@@ -188,6 +188,7 @@
 const canvases = [...document.querySelectorAll('canvas')];
 const states = new Map();
 let mode = 'listening';
+const ISLAND = Object.freeze({ width: 112, height: 28, corner: 12 });
 
 function selectCard(element) {
   if (typeof window.toggleSelect === 'function') window.toggleSelect(element);
@@ -231,7 +232,7 @@ function colorFor(e, alpha = 1) {
 }
 
 function notch(ctx, w) {
-  const nw = 112, nh = 28, x = (w - nw) / 2;
+  const nw = ISLAND.width, nh = ISLAND.height, x = (w - nw) / 2;
   ctx.fillStyle = '#000';
   ctx.beginPath();
   ctx.moveTo(x, 0);
@@ -350,18 +351,78 @@ function mod(value, divisor) {
   return ((value % divisor) + divisor) % divisor;
 }
 
-function drawTunnel(s, t, e) {
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function expoOut(value) {
+  const t = clamp01(value);
+  return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+}
+
+function expoIn(value) {
+  const t = clamp01(value);
+  return t === 0 ? 0 : Math.pow(2, 10 * t - 10);
+}
+
+function islandPresence(t) {
+  const cycle = mod(t, 10.2);
+  if (cycle < .52) return expoOut(cycle / .52);
+  if (cycle < 8.92) return 1;
+  if (cycle < 9.48) return 1 - expoIn((cycle - 8.92) / .56);
+  return 0;
+}
+
+function drawTunnelLayer(s, t, e, presence, layerAlpha) {
   const {ctx, w, h} = s;
-  const vanishY = 31;
+  const apertureY = ISLAND.height - .35;
+  const startRadius = ISLAND.width / 2 - 5;
+  const collapsedScale = ISLAND.width / (w * .91);
+  const horizontalScale = collapsedScale + presence * (1 - collapsedScale);
+  const verticalScale = .025 + presence * .975;
+  const visibility = Math.min(1, presence * 4);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, ISLAND.height - .5, w, h - ISLAND.height + .5);
+  ctx.clip();
+  ctx.translate(w / 2, apertureY);
+  ctx.scale(horizontalScale, verticalScale);
+  ctx.translate(-w / 2, -apertureY);
+  ctx.globalAlpha = visibility * layerAlpha;
+
+  const throatDepths = [0, .014, .034, .064, .105];
+  for (let throat = 0; throat < throatDepths.length; throat++) {
+    const p = throatDepths[throat];
+    const breath = Math.sin(t * 4.6 + throat * .83) * e * (.25 + p * 2.2);
+    const cy = apertureY + p * h * .67;
+    const rw = startRadius + p * (w * .455 - startRadius);
+    const rh = .55 + p * h * .225;
+    ctx.beginPath();
+    for (let point = 0; point <= 96; point++) {
+      const angle = point / 96 * Math.PI * 2;
+      const voiceShape = Math.sin(angle * 3 + t * 5.4 - throat * .7) * breath;
+      const x = w / 2 + Math.cos(angle) * (rw + voiceShape * .16);
+      const y = cy + Math.sin(angle) * (rh + voiceShape);
+      if (point === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = colorFor(e, .60 - throat * .075);
+    ctx.lineWidth = .68 + throat * .035;
+    ctx.shadowColor = colorFor(e, .38);
+    ctx.shadowBlur = 5 + e * 8;
+    ctx.stroke();
+  }
+
   for (let index = 15; index >= 0; index--) {
     const z = mod(index / 16 + t * .145, 1);
     const p = 1 - Math.pow(1 - z, 4.1);
-    const cy = vanishY + p * h * .67;
-    const rw = 2 + p * w * .455;
-    const rh = 1 + p * h * .225;
+    const cy = apertureY + p * h * .67;
+    const rw = startRadius + p * (w * .455 - startRadius);
+    const rh = .7 + p * h * .225;
     const wobble = (.4 + e * 5.6) * Math.pow(z, .82);
 
-    for (let trail = 2; trail >= 0; trail--) {
+    for (let trail = 1; trail >= 0; trail--) {
       const fade = Math.exp(-trail * .75);
       ctx.beginPath();
       for (let point = 0; point <= 96; point++) {
@@ -380,12 +441,52 @@ function drawTunnel(s, t, e) {
     }
   }
   ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawTunnel(s, t, e, presence) {
+  const {history} = s;
+  history.unshift(presence);
+  if (history.length > 7) history.pop();
+
+  for (let trail = history.length - 1; trail >= 0; trail--) {
+    const sample = history[trail];
+    const delta = Math.abs(sample - presence);
+    if (trail && delta < .002) continue;
+    const alpha = trail === 0 ? 1 : Math.min(.22, delta * 2.6) * Math.exp(-trail * .42);
+    if (alpha < .008) continue;
+    drawTunnelLayer(s, t - trail / 60, e, sample, alpha);
+  }
+}
+
+function drawIslandAperture(ctx, w, e, presence) {
+  if (presence < .01) return;
+  const center = w / 2;
+  const half = ISLAND.width / 2 - 7;
+  const y = ISLAND.height + .15;
+  const gradient = ctx.createLinearGradient(center - half, y, center + half, y);
+  gradient.addColorStop(0, colorFor(e, 0));
+  gradient.addColorStop(.16, colorFor(e, .52 * presence));
+  gradient.addColorStop(.5, colorFor(e, .94 * presence));
+  gradient.addColorStop(.84, colorFor(e, .52 * presence));
+  gradient.addColorStop(1, colorFor(e, 0));
+  ctx.save();
+  ctx.strokeStyle = gradient;
+  ctx.lineWidth = .95;
+  ctx.shadowColor = colorFor(e, .58 * presence);
+  ctx.shadowBlur = 7 + e * 5;
+  ctx.beginPath();
+  ctx.moveTo(center - half, y);
+  ctx.bezierCurveTo(center - half * .55, y + .8, center + half * .55, y + .8, center + half, y);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function frame(ms) {
   const t = ms / 1000;
   const target = voice(t);
   const animationTime = mode === 'listening' ? t : -t;
+  const presence = islandPresence(t);
   for (const canvas of canvases) {
     const s = states.get(canvas);
     if (!s) continue;
@@ -393,11 +494,12 @@ function frame(ms) {
     s.smooth += (target - s.smooth) * attack;
     const e = Math.round(s.smooth * 15) / 15;
     s.ctx.clearRect(0, 0, s.w, s.h);
-    notch(s.ctx, s.w);
     if (canvas.id === 'singularity') drawSingularity(s, animationTime, e);
     if (canvas.id === 'tension') drawTension(s, animationTime, e);
     if (canvas.id === 'phase') drawPhase(s, animationTime, e);
-    if (canvas.id === 'tunnel') drawTunnel(s, animationTime, e);
+    if (canvas.id === 'tunnel') drawTunnel(s, animationTime, e, presence);
+    notch(s.ctx, s.w);
+    if (canvas.id === 'tunnel') drawIslandAperture(s.ctx, s.w, e, presence);
   }
   requestAnimationFrame(frame);
 }
