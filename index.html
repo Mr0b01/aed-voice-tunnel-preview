@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AED Notch Signature</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #101113;
+    --surface: #181a1d;
+    --line: #2b2e33;
+    --text: #f5f5f3;
+    --muted: #979ca4;
+    --red: #ff3348;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    letter-spacing: 0;
+  }
+  main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 38px 0 54px; }
+  header { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 28px; font-weight: 690; letter-spacing: 0; }
+  header p { max-width: 560px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; text-align: right; }
+  .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .segmented { display:flex; flex:0 0 auto; border:1px solid var(--line); border-radius:6px; padding:3px; background:#111214; }
+  .segmented button { border:0; border-radius:4px; padding:7px 11px; color:#888e96; background:transparent; font:600 12px -apple-system,BlinkMacSystemFont,sans-serif; cursor:pointer; }
+  .segmented button.active { color:#fff; background:#2b2e33; }
+  .card {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    overflow: hidden;
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  }
+  .card:hover { transform: translateY(-2px); border-color: #4a4e55; }
+  .card.selected { border-color: var(--red); box-shadow: 0 0 0 1px rgba(255, 51, 72, .24); }
+  .preview {
+    position: relative;
+    height: 250px;
+    background: #070809;
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+  .tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 4px;
+    background: rgba(11,12,14,.72);
+    color: #c8cbd0;
+    font-size: 11px;
+    font-weight: 620;
+  }
+  .recommended { color: #fff; border-color: rgba(255,51,72,.42); }
+  .body { padding: 16px 17px 18px; min-height: 126px; }
+  .title-row { display: flex; align-items: center; gap: 9px; }
+  .letter {
+    display: grid;
+    place-items: center;
+    flex: 0 0 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: #26292e;
+    color: #d9dadd;
+    font-size: 12px;
+    font-weight: 750;
+  }
+  .selected .letter { background: var(--red); color: white; }
+  h2 { margin: 0; font-size: 17px; font-weight: 680; letter-spacing: 0; }
+  .body p { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    color: #8c9199;
+    font-size: 12px;
+  }
+  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px rgba(255,51,72,.72); }
+  @media (max-width: 900px) {
+    header { display: block; }
+    header p { margin-top: 8px; text-align: left; }
+    .cards { grid-template-columns: 1fr; }
+    .preview { height: 220px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Усі notch-анімації AED</h1><p>Чотири різні фізики руху. Натисни на ту, яка має стати фірмовим підписом.</p></div>
+    <div class="segmented">
+      <button id="listenBtn" class="active" onclick="setMode('listening')">Listening</button>
+      <button id="processBtn" onclick="setMode('processing')">Processing</button>
+    </div>
+  </header>
+
+  <section class="cards">
+    <article class="card" data-choice="singularity-echo" onclick="selectCard(this)">
+      <div class="preview">
+        <span class="tag recommended">РЕКОМЕНДОВАНО</span>
+        <canvas id="singularity"></canvas>
+      </div>
+      <div class="body">
+        <div class="title-row"><span class="letter">A</span><h2>Singularity Echo</h2></div>
+        <p>Одна жива hairline-нитка народжується в центрі. Голос викривляє її як простір, а експоненційні часові відбитки створюють справжній motion trail.</p>
+      </div>
+    </article>
+
+    <article class="card" data-choice="tension-field" onclick="selectCard(this)">
+      <div class="preview">
+        <span class="tag">МАГНІТНА МЕХАНІКА</span>
+        <canvas id="tension"></canvas>
+      </div>
+      <div class="body">
+        <div class="title-row"><span class="letter">B</span><h2>Tension Field</h2></div>
+        <p>Тонкі натягнуті волокна стягуються до голосового ядра, вигинаються й відпускають енергію в сторони. Не waveform і не equalizer.</p>
+      </div>
+    </article>
+
+    <article class="card" data-choice="phase-bloom" onclick="selectCard(this)">
+      <div class="preview">
+        <span class="tag">ФАЗОВА МЕХАНІКА</span>
+        <canvas id="phase"></canvas>
+      </div>
+      <div class="body">
+        <div class="title-row"><span class="letter">C</span><h2>Phase Bloom</h2></div>
+        <p>Два дзеркальні імпульси розгортаються з центру, проходять один крізь одного й складаються у тонкий інтерференційний візерунок.</p>
+      </div>
+    </article>
+
+    <article class="card" data-choice="voice-tunnel" onclick="selectCard(this)">
+      <div class="preview">
+        <span class="tag recommended">НОВИЙ</span>
+        <canvas id="tunnel"></canvas>
+      </div>
+      <div class="body">
+        <div class="title-row"><span class="letter">D</span><h2>Voice Tunnel</h2></div>
+        <p>16 перспективних EXPO-контурів виходять із notch, деформуються голосом і під час processing затягуються назад.</p>
+      </div>
+    </article>
+  </section>
+
+  <div class="legend"><span class="pulse-dot"></span><span>Гучність симулюється живими фразами: тиша, атака, утримання, спад.</span></div>
+</main>
+
+<script>
+const canvases = [...document.querySelectorAll('canvas')];
+const states = new Map();
+let mode = 'listening';
+
+function selectCard(element) {
+  if (typeof window.toggleSelect === 'function') window.toggleSelect(element);
+  else element.classList.toggle('selected');
+}
+
+function setMode(next) {
+  mode = next;
+  document.getElementById('listenBtn').classList.toggle('active', next === 'listening');
+  document.getElementById('processBtn').classList.toggle('active', next === 'processing');
+}
+
+function fit(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  states.set(canvas, { ctx, w: rect.width, h: rect.height, dpr, smooth: 0, history: [] });
+}
+
+function voice(t) {
+  if (mode === 'processing') return .30 + Math.sin(t * 2.3) * .07 + Math.sin(t * 5.2) * .025;
+  const cycle = t % 8.4;
+  let target = 0.035;
+  if (cycle > 1.0 && cycle < 1.35) target = (cycle - 1.0) / .35 * .78;
+  else if (cycle >= 1.35 && cycle < 3.0) target = .60 + Math.sin(t * 5.4) * .18 + Math.sin(t * 10.7) * .08;
+  else if (cycle >= 3.0 && cycle < 3.45) target = .72 - (cycle - 3.0) / .45 * .62;
+  else if (cycle >= 4.25 && cycle < 4.48) target = (cycle - 4.25) / .23 * .98;
+  else if (cycle >= 4.48 && cycle < 6.7) target = .68 + Math.sin(t * 4.1) * .22 + Math.sin(t * 13.2) * .07;
+  else if (cycle >= 6.7 && cycle < 7.2) target = .68 * (1 - (cycle - 6.7) / .5);
+  return Math.max(.025, Math.min(1, target));
+}
+
+function colorFor(e, alpha = 1) {
+  const r = Math.round(156 + (255 - 156) * e);
+  const g = Math.round(161 + (48 - 161) * e);
+  const b = Math.round(169 + (68 - 169) * e);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function notch(ctx, w) {
+  const nw = 112, nh = 28, x = (w - nw) / 2;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(x, 0);
+  ctx.lineTo(x + nw, 0);
+  ctx.lineTo(x + nw, 17);
+  ctx.quadraticCurveTo(x + nw, nh, x + nw - 12, nh);
+  ctx.lineTo(x + 12, nh);
+  ctx.quadraticCurveTo(x, nh, x, 17);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function baseline(ctx, w, y) {
+  ctx.strokeStyle = 'rgba(175,180,187,.12)';
+  ctx.lineWidth = .7;
+  ctx.beginPath();
+  ctx.moveTo(24, y);
+  ctx.lineTo(w - 24, y);
+  ctx.stroke();
+}
+
+function drawSingularity(s, t, e) {
+  const {ctx, w, h, history} = s;
+  const y0 = 95;
+  baseline(ctx, w, y0);
+  history.unshift({t, e});
+  if (history.length > 7) history.pop();
+
+  for (let trail = history.length - 1; trail >= 0; trail--) {
+    const item = history[trail];
+    const fade = Math.exp(-trail * .62);
+    const width = 1.05 + trail * .38;
+    ctx.strokeStyle = colorFor(item.e, (.72 * fade) * (trail ? .48 : 1));
+    ctx.lineWidth = width;
+    ctx.shadowColor = colorFor(item.e, .5 * fade);
+    ctx.shadowBlur = trail === 0 ? 8 + item.e * 10 : 12 + trail * 3;
+    ctx.beginPath();
+    for (let x = 22; x <= w - 22; x += 2) {
+      const n = (x - w / 2) / (w * .5);
+      const spread = .10 + item.e * .64;
+      const envelope = Math.exp(-Math.pow(Math.abs(n) / spread, 3.1));
+      const packetA = Math.sin(item.t * 7.5 + n * 25 + n * n * 8);
+      const packetB = Math.sin(item.t * 4.3 - n * 47) * .25;
+      const idle = Math.sin(item.t * 1.8 + n * 11) * .22;
+      const amp = .7 + item.e * 17.5;
+      const y = y0 + (packetA + packetB) * envelope * amp + idle * (1 - envelope);
+      if (x === 22) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+  const core = 2.2 + e * 4.4;
+  ctx.fillStyle = colorFor(e, .92);
+  ctx.beginPath();
+  ctx.arc(w / 2, y0, core, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawTension(s, t, e) {
+  const {ctx, w} = s;
+  const top = 51, bottom = 144, center = w / 2;
+  for (let i = -7; i <= 7; i++) {
+    const u = i / 7;
+    const x0 = center + u * (w * .36);
+    const pull = Math.exp(-Math.pow(Math.abs(u) / (.24 + e * .32), 2.4));
+    const sway = Math.sin(t * 4.2 + i * .72) * (1.2 + e * 6) * pull;
+    const x1 = x0 + (center - x0) * pull * (.15 + e * .54) + sway;
+    const y1 = 94 + Math.sin(t * 5.8 - i * .4) * e * 10 * pull;
+    ctx.strokeStyle = colorFor(e, .16 + pull * (.28 + e * .38));
+    ctx.lineWidth = .65 + pull * .75;
+    ctx.shadowColor = colorFor(e, .42);
+    ctx.shadowBlur = pull * e * 13;
+    ctx.beginPath();
+    ctx.moveTo(x0, top);
+    ctx.bezierCurveTo(x0, 69, x1, 74, x1, y1);
+    ctx.bezierCurveTo(x1, 116, x0, 126, x0 + u * 6, bottom);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = colorFor(e, .64);
+  ctx.lineWidth = .8;
+  ctx.beginPath();
+  ctx.arc(center, 94, 5 + e * 11, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawPhase(s, t, e) {
+  const {ctx, w} = s;
+  const y0 = 96;
+  baseline(ctx, w, y0);
+  for (let layer = 5; layer >= 0; layer--) {
+    const lag = layer * .075;
+    const tt = t - lag;
+    const fade = Math.exp(-layer * .55);
+    ctx.strokeStyle = colorFor(e, fade * (layer ? .22 : .76));
+    ctx.lineWidth = .75 + layer * .35;
+    ctx.shadowColor = colorFor(e, fade * .35);
+    ctx.shadowBlur = 8 + layer * 2;
+    ctx.beginPath();
+    for (let x = 22; x <= w - 22; x += 2) {
+      const n = (x - w / 2) / (w * .5);
+      const radius = (tt * .22) % .72;
+      const fronts = Math.exp(-Math.pow((Math.abs(n) - radius) / (.045 + e * .025), 2));
+      const centerFold = Math.exp(-Math.pow(n / (.11 + e * .12), 2.6));
+      const phaseWave = Math.sin(tt * 9 + Math.abs(n) * 38) * fronts;
+      const fold = Math.sin(tt * 6.3 - n * 24) * centerFold * .46;
+      const y = y0 + (phaseWave + fold) * (2.5 + e * 15.5);
+      if (x === 22) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function mod(value, divisor) {
+  return ((value % divisor) + divisor) % divisor;
+}
+
+function drawTunnel(s, t, e) {
+  const {ctx, w, h} = s;
+  const vanishY = 31;
+  for (let index = 15; index >= 0; index--) {
+    const z = mod(index / 16 + t * .145, 1);
+    const p = 1 - Math.pow(1 - z, 4.1);
+    const cy = vanishY + p * h * .67;
+    const rw = 2 + p * w * .455;
+    const rh = 1 + p * h * .225;
+    const wobble = (.4 + e * 5.6) * Math.pow(z, .82);
+
+    for (let trail = 2; trail >= 0; trail--) {
+      const fade = Math.exp(-trail * .75);
+      ctx.beginPath();
+      for (let point = 0; point <= 96; point++) {
+        const angle = point / 96 * Math.PI * 2;
+        const voiceShape = Math.sin(angle * 3 + t * 5.4 - z * 9) * wobble;
+        const x = w / 2 + Math.cos(angle) * (rw + voiceShape * .28);
+        const y = cy + Math.sin(angle) * (rh + voiceShape);
+        if (point === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = colorFor(e * (.52 + z * .48), (.10 + z * .48) * fade * (trail ? .38 : 1));
+      ctx.lineWidth = .55 + z * .72 + trail * .32;
+      ctx.shadowColor = colorFor(e, .35 * fade);
+      ctx.shadowBlur = (4 + e * 11 + trail * 3) * z;
+      ctx.stroke();
+    }
+  }
+  ctx.shadowBlur = 0;
+}
+
+function frame(ms) {
+  const t = ms / 1000;
+  const target = voice(t);
+  const animationTime = mode === 'listening' ? t : -t;
+  for (const canvas of canvases) {
+    const s = states.get(canvas);
+    if (!s) continue;
+    const attack = target > s.smooth ? .22 : .07;
+    s.smooth += (target - s.smooth) * attack;
+    const e = Math.round(s.smooth * 15) / 15;
+    s.ctx.clearRect(0, 0, s.w, s.h);
+    notch(s.ctx, s.w);
+    if (canvas.id === 'singularity') drawSingularity(s, animationTime, e);
+    if (canvas.id === 'tension') drawTension(s, animationTime, e);
+    if (canvas.id === 'phase') drawPhase(s, animationTime, e);
+    if (canvas.id === 'tunnel') drawTunnel(s, animationTime, e);
+  }
+  requestAnimationFrame(frame);
+}
+
+function refit() { canvases.forEach(fit); }
+window.addEventListener('resize', refit);
+refit();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
